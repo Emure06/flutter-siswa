@@ -4,14 +4,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class PageViewUser extends StatefulWidget {
-  const PageViewUser({super.key});
+class ViewUserPage extends StatefulWidget {
+  const ViewUserPage({super.key});
 
   @override
-  State<PageViewUser> createState() => _PageViewUserState();
+  State<ViewUserPage> createState() => _ViewUserPageState();
 }
 
-class _PageViewUserState extends State<PageViewUser> {
+class _ViewUserPageState extends State<ViewUserPage> {
   late Future<List<dynamic>> futureUser;
 
   // Alamat API (otomatis sesuai perangkat)
