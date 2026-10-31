@@ -1,47 +1,62 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_service.dart';
+import '../utils/ui_helper.dart';
+
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
 
+  void _logout(BuildContext context) {
+    ApiService.logout();
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEAF4FF),
+    final username = ApiService.currentUser?['username'] ?? '';
 
+    return Scaffold(
+      backgroundColor: kBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEAF4FF),
+        backgroundColor: kBackground,
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
-
       body: Column(
         children: [
-          // Judul Dashboard
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.dashboard, color: Color(0xFF34546A)),
-
+                const Icon(Icons.dashboard, color: kPrimary),
                 const Text(
                   'Dashboard',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF34546A),
+                    color: kPrimary,
                   ),
                 ),
-
                 IconButton(
                   icon: const Icon(Icons.notifications_none),
-                  color: const Color(0xFF34546A),
+                  color: kPrimary,
                   onPressed: () {},
                 ),
               ],
             ),
           ),
-
+          if (username.toString().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Halo, $username',
+                  style: const TextStyle(fontSize: 16, color: kPrimary),
+                ),
+              ),
+            ),
           Expanded(
             child: GridView.count(
               padding: const EdgeInsets.all(16),
@@ -49,33 +64,21 @@ class Dashboard extends StatelessWidget {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: 1.3,
-
               children: [
                 menuCard(
                   icon: Icons.visibility_outlined,
                   title: 'Lihat Data',
-                  color: Colors.white,
-                  onTap: () {
-                    Navigator.pushNamed(context, '/view-user');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/view-user'),
                 ),
-
                 menuCard(
                   icon: Icons.manage_accounts_outlined,
                   title: 'Atur Data Siswa',
-                  color: Colors.white,
-                  onTap: () {
-                    Navigator.pushNamed(context, '/atur-data-siswa');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/atur-data-siswa'),
                 ),
-
                 menuCard(
-                  icon: Icons.arrow_back,
+                  icon: Icons.logout,
                   title: 'Logout',
-                  color: Colors.white,
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
+                  onTap: () => _logout(context),
                 ),
               ],
             ),
@@ -88,11 +91,10 @@ class Dashboard extends StatelessWidget {
   Widget menuCard({
     required IconData icon,
     required String title,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return Card(
-      color: color,
+      color: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
@@ -104,10 +106,8 @@ class Dashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 28, color: const Color(0xFF34546A)),
-
+              Icon(icon, size: 28, color: kPrimary),
               const SizedBox(height: 12),
-
               Text(
                 title,
                 style: const TextStyle(fontSize: 16, color: Colors.black87),

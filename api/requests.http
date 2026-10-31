@@ -1,0 +1,61 @@
+### Untuk VS Code extension "REST Client"
+@host = http://localhost:3000/api
+
+### Health check
+GET {{host}}/health
+
+### Login
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "123456"
+}
+
+###
+@token = {{login.response.body.data.token}}
+
+### Profil
+GET {{host}}/auth/me
+Authorization: Bearer {{token}}
+
+### Daftar siswa
+GET {{host}}/siswa?page=1&limit=10&search=emre&sort_by=nama_lengkap&order=asc
+Authorization: Bearer {{token}}
+
+### Statistik
+GET {{host}}/siswa/stats
+Authorization: Bearer {{token}}
+
+### Detail siswa
+GET {{host}}/siswa/1
+Authorization: Bearer {{token}}
+
+### Tambah siswa
+POST {{host}}/siswa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nama_lengkap": "Budi Santoso",
+  "jenis_kelamin": "Laki-laki",
+  "alamat": "Jl. Mawar No. 5",
+  "kelas": "XII",
+  "jurusan": "RPL",
+  "nipd": "242510099"
+}
+
+### Update sebagian
+PATCH {{host}}/siswa/3
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "alamat": "Jl. Melati No. 10"
+}
+
+### Hapus siswa
+DELETE {{host}}/siswa/3
+Authorization: Bearer {{token}}

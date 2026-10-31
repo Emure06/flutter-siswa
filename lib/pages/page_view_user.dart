@@ -1,9 +1,13 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+
+import '../models/siswa.dart';
+import '../services/api_service.dart';
+import '../utils/ui_helper.dart';
+import '../widgets/siswa_widgets.dart';
+
+/// Halaman LIHAT DATA: hanya untuk melihat, tidak ada edit/hapus.
 class ViewUserPage extends StatefulWidget {
   const ViewUserPage({super.key});
 
@@ -12,94 +16,130 @@ class ViewUserPage extends StatefulWidget {
 }
 
 class _ViewUserPageState extends State<ViewUserPage> {
-  late Future<List<dynamic>> futureUser;
+  final _searchC = TextEditingController();
+  Timer? _debounce;
 
-  // Alamat API (otomatis sesuai perangkat)
-  // Chrome / Windows : localhost
-  // Emulator Android : 10.0.2.2
-  // HP fisik         : ganti manual jadi 'http://IP_LAPTOP:3001/api'
-  String get baseUrl {
-    if (kIsWeb) return 'http://localhost:3001/api';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3001/api';
-    }
-    return 'http://localhost:3001/api';
-  }
+  List<Siswa> _data = [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    futureUser = getDataUser(); // dipanggil sekali, bukan tiap build
+    _load();
   }
 
-  Future<List<dynamic>> getDataUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchC.dispose();
+    super.dispose();
+  }
 
-    debugPrint('TOKEN: $token');
-
-    if (token == null) {
-      throw Exception("Token tidak ada, silakan login dulu");
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await ApiService.getSiswa(search: _searchC.text);
+      if (!mounted) return;
+      setState(() => _data = data);
+    } catch (e) {
+      if (!mounted) return;
+      if (e is ApiException && e.isUnauthorized) {
+        handleApiError(context, e);
+        return;
+      }
+      setState(() => _error = e is ApiException ? e.message : '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
+  }
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/users?limit=100'), // maksimal 100 data per request
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+  void _onSearchChanged(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _load);
+  }
+
+  Widget _body() {
+    if (_loading && _data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: MessageView(
+          icon: Icons.cloud_off,
+          message: _error!,
+          actionLabel: 'Coba lagi',
+          onAction: _load,
+        ),
+      );
+    }
+    if (_data.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: const MessageView(
+          icon: Icons.search_off,
+          message: 'Data siswa tidak ditemukan',
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        itemCount: _data.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => SiswaCard(
+          siswa: _data[i],
+          onTap: () => showSiswaDetail(context, _data[i]),
+        ),
+      ),
     );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      List<dynamic> listUser = data['data'];
-      return listUser;
-    } else if (response.statusCode == 401) {
-      debugPrint("Token tidak valid / kadaluarsa");
-      throw Exception("Token tidak valid / kadaluarsa, silakan login ulang");
-    } else {
-      debugPrint("Gagal Memuat Data Users");
-      throw Exception("Failed to read data users (${response.statusCode})");
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<List<dynamic>>(
-        future: futureUser,
-        builder: (context, snapshot) {
-          // 1. Masih loading
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // 2. Ada error
-          else if (snapshot.hasError) {
-            debugPrint('Terjadi Error: ${snapshot.error}');
-            return Center(child: Text('Terjadi Error: ${snapshot.error}'));
-          }
-
-          // 3. Data kosong atau null
-          else if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text('Data kosong.'));
-          }
-
-          final users = snapshot.data!;
-          return ListView.builder(
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  child: Text(user['id'].toString()),
+      backgroundColor: kBackground,
+      appBar: AppBar(
+        backgroundColor: kBackground,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: kPrimary),
+        title: const Text(
+          'Lihat Data',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: kPrimary,
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: TextField(
+              controller: _searchC,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Cari nama, NIPD, atau alamat',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
                 ),
-                title: Text(user['nama'] ?? '-'), // kolom di database: nama
-                subtitle: Text(user['email'] ?? '-'),
-              );
-            },
-          );
-        },
+              ),
+            ),
+          ),
+          Expanded(child: _body()),
+        ],
       ),
     );
   }

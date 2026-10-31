@@ -1,8 +1,7 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:belajar/pages/dashboard.dart';
+
+import '../services/api_service.dart';
+import '../utils/ui_helper.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,180 +11,137 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false;
-
-  
-  String get apiUrl {
-    if (kIsWeb) return 'http://localhost:3001/api/auth/login';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3001/api/auth/login'; // emulator Android
-    }
-    return 'http://localhost:3001/api/auth/login'; // Windows
-  }
-
-  Future<void> login() async {
-    final username = usernameController.text.trim();
-    final password = passwordController.text;
-
-    if (username.isEmpty || password.isEmpty) {
-      pesan('Username dan password wajib diisi');
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password}),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (!mounted) return;
-
-      if (data['success'] == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Dashboard()),
-        );
-      } else {
-        pesan(data['message'] ?? 'Login gagal');
-      }
-    } catch (e) {
-      debugPrint('ERROR LOGIN: $e');
-      if (mounted) pesan('Tidak bisa terhubung ke server');
-    }
-
-    if (mounted) setState(() => isLoading = false);
-  }
-
-  void pesan(String teks) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(teks)));
-  }
+  final _formKey = GlobalKey<FormState>();
+  final _userC = TextEditingController();
+  final _passC = TextEditingController();
+  bool _loading = false;
+  bool _obscure = true;
 
   @override
   void dispose() {
-    usernameController.dispose();
-    passwordController.dispose();
+    _userC.dispose();
+    _passC.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+    try {
+      await ApiService.login(_userC.text.trim(), _passC.text);
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } catch (e) {
+      if (!mounted) return;
+      showSnack(
+        context,
+        e is ApiException ? e.message : 'Terjadi kesalahan: $e',
+        error: true,
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF4FF),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            margin: const EdgeInsets.all(25),
-            padding: const EdgeInsets.all(25),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.15),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+      backgroundColor: kBackground,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Icon login
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF4FF),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: const Icon(Icons.person, size: 50, color: Colors.blue),
-                ),
-
-                const SizedBox(height: 15),
-                const Text('Selamat Datang Kembali',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    )),
-                const SizedBox(height: 5),
-
+                const Icon(Icons.person_2_outlined, size: 64, color: kPrimary),
+                const SizedBox(height: 12),
                 const Text(
-                  'Silakan login ke akun kamu',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-
-                const SizedBox(height: 30),
-
-                // Username
-                TextField(
-                  controller: usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    filled: true,
-                    fillColor: const Color(0xFFF5F8FC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                  'Biodata Siswa',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: kPrimary,
                   ),
                 ),
-
-                const SizedBox(height: 18),
-
-                // Password
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    filled: true,
-                    fillColor: const Color(0xFFF5F8FC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                const SizedBox(height: 4),
+                const Text('Silakan login untuk melanjutkan'),
+                const SizedBox(height: 24),
+                Card(
+                  color: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // Tombol Login
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: isLoading ? null : login,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _userC,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Username atau email',
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(),
                             ),
-                          )
-                        : const Text(
-                            'LOGIN',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Username/email wajib diisi'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passC,
+                            obscureText: _obscure,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _login(),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscure
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'Password wajib diisi'
+                                : null,
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kPrimary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Login'),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
