@@ -18,7 +18,6 @@ const assertNipdUnik = async (nipd, exceptId = null) => {
   if (rows.length) throw new AppError('NIPD sudah dipakai siswa lain', 409);
 };
 
-// GET /api/siswa?page=1&limit=10&search=emre&kelas=XII&jurusan=RPL&sort_by=nama_lengkap&order=asc
 exports.list = asyncHandler(async (req, res) => {
   const { page, limit, search, kelas, jurusan, jenis_kelamin, sort_by, order } = req.query;
 
@@ -41,7 +40,6 @@ exports.list = asyncHandler(async (req, res) => {
     params
   );
 
-  // sort_by & order sudah divalidasi (enum), aman dipakai langsung
   const [rows] = await db.query(
     `SELECT ${COLUMNS} FROM siswa ${whereSql}
      ORDER BY ${sort_by} ${order.toUpperCase()}
@@ -56,7 +54,6 @@ exports.list = asyncHandler(async (req, res) => {
   });
 });
 
-// GET /api/siswa/stats
 exports.stats = asyncHandler(async (req, res) => {
   const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM siswa');
   const [per_kelas] = await db.query(
@@ -72,14 +69,12 @@ exports.stats = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { total, per_kelas, per_jurusan, per_jenis_kelamin } });
 });
 
-// GET /api/siswa/:id
 exports.getById = asyncHandler(async (req, res) => {
   const siswa = await findById(req.params.id);
   if (!siswa) throw new AppError('Data siswa tidak ditemukan', 404);
   res.json({ success: true, data: siswa });
 });
 
-// POST /api/siswa
 exports.create = asyncHandler(async (req, res) => {
   const { nama_lengkap, jenis_kelamin, alamat, kelas, jurusan, nipd = null } = req.body;
   await assertNipdUnik(nipd);
@@ -97,12 +92,10 @@ exports.create = asyncHandler(async (req, res) => {
   });
 });
 
-// PUT /api/siswa/:id  dan  PATCH /api/siswa/:id
 exports.update = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!(await findById(id))) throw new AppError('Data siswa tidak ditemukan', 404);
 
-  // key berasal dari hasil parse zod (whitelist), jadi aman dipakai sebagai nama kolom
   const fields = Object.keys(req.body);
   if (req.body.nipd !== undefined) await assertNipdUnik(req.body.nipd, id);
 
@@ -119,7 +112,6 @@ exports.update = asyncHandler(async (req, res) => {
   });
 });
 
-// DELETE /api/siswa/:id
 exports.remove = asyncHandler(async (req, res) => {
   const [result] = await db.query('DELETE FROM siswa WHERE id = ?', [req.params.id]);
   if (!result.affectedRows) throw new AppError('Data siswa tidak ditemukan', 404);
